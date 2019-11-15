@@ -6,7 +6,8 @@ def make_socket_dns_connection():
     return registerDnsSocket
 
 def udp_dns_connection(registerDnsSocket):
-    hostName = 'C sises.ufpe.br'
+    msg = input('Digite o hostname do server que voce quer se conectar: ')
+    hostName = 'C ' + msg
     # dns info
     dnsAddress = '127.0.0.1'
     dnsPort = 5300
@@ -16,48 +17,67 @@ def udp_dns_connection(registerDnsSocket):
 
     return data,dnsInfo
 
-def make_and_send_socket_tcp(serverIp):
+
+def make_socket_tcp(serverIp):
     clientSocket = socket(AF_INET,SOCK_STREAM)
     clientSocket.connect((serverIp,13000))
 
+    return clientSocket
+
+def send_socket_tcp(serverIp):
     while True:
         print('Escolha uma opcao\n 1 - Solicitar um arquivo\n 2 - Solicitar uma lista de arquivos disponıveis no repositorio\n 3 - Encerrar conexao\n')
 
-        op = int(input())
+        op = input()
 
-        if op == 1:
+        if op == '1':
+            clientSocket = make_socket_tcp(serverIp)
             request_file(clientSocket)
-            break
-        elif op == 2:
             
-            break
-        elif op == 3:
+        elif op == '2':
+            clientSocket = make_socket_tcp(serverIp)
+            request_list_file(clientSocket)
+        elif op == '3':
             clientSocket.close()
             break
         else:
             print('Operacao invalida!!!\n')
 
 def receive_file(clientSocket,fileName):
-    file = open(fileName + '_receive.pdf','wb')
-
     l = clientSocket.recv(2048)
 
-    while l:
-        file.write(l)
-        l = clientSocket.recv(2048)
+    if l.decode() == 'File not found!!!':
+        print(l.decode())
+    else:
+        file = open(fileName + '_download.pdf','wb')
+
+        while l:
+            file.write(l)
+            l = clientSocket.recv(2048)
         
-    file.close()
+        file.close()
+    
     clientSocket.close()
 
 def request_file(clientSocket):
     op = '1 '
-    fileName = input('Digite o nome do arquivo: ')
+    fileName = input('Digite o nome do arquivo no formato nome.extensao: ')
     msg = op + fileName
 
     clientSocket.send(msg.encode())
 
     receive_file(clientSocket,fileName)
-   
+
+def request_list_file(clientSocket):
+    op = '2'
+
+    clientSocket.send(op.encode())
+    listFile = clientSocket.recv(2048)
+
+    print('The server returned the following list:\n' + listFile.decode() + '\n')
+
+    clientSocket.close()
+
 def main():
     registerDnsSocket = make_socket_dns_connection()
     data, dnsInfo = udp_dns_connection(registerDnsSocket)
@@ -67,7 +87,8 @@ def main():
         print(data.decode())
 
     else:
-        make_and_send_socket_tcp(data.decode())
+        print('Dns server returned: ' + data.decode())
+        send_socket_tcp(data.decode())
 
 
 if __name__ == "__main__":
