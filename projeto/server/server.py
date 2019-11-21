@@ -31,6 +31,8 @@ def send_file(connectionSocket,info):
     print(file_exists(info[1]))
     if file_exists(info[1]):
         file = open('./' + repo + '/' + info[1],'rb') 
+        msg = 'Sending file...'
+        connectionSocket.send(msg.encode())
 
         l = file.read(2048)
 

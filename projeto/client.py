@@ -7,6 +7,7 @@ def make_socket_dns_connection():
 
 def udp_dns_connection(registerDnsSocket):
     msg = input('Digite o hostname do server que voce quer se conectar: ')
+    print(msg)
     hostName = 'C ' + msg
     # dns info
     dnsAddress = '127.0.0.1'
@@ -46,11 +47,16 @@ def send_socket_tcp(serverIp):
 def receive_file(clientSocket,fileName):
     l = clientSocket.recv(2048)
 
+
     if l.decode() == 'File not found!!!':
         print(l.decode())
     else:
-        file = open(fileName + '_download.pdf','wb')
+        print(l.decode())
 
+        file = open('download_' + fileName,'wb')
+
+        l = clientSocket.recv(2048)
+        
         while l:
             file.write(l)
             l = clientSocket.recv(2048)
