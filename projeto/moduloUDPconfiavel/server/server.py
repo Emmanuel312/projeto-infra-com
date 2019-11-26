@@ -1,5 +1,15 @@
 from socket import *
 from os import listdir
+import pickle
+import json
+
+
+class Packet:
+    def __init__(self,seq,ack = None,data = None,):
+        self.seq = seq
+        self.ack = ack
+        self.data = data
+
 
 # nome do repositorio que contem os arquivos do servidor
 repo = 'repo1'
@@ -10,7 +20,7 @@ def make_socket_dns_connection():
     return registerDnsSocket
 
 def udp_dns_connection(registerDnsSocket):
-    info = 'R sises.ufpe.br 127.0.0.1'
+    info = 'R a 127.0.0.1'
     # dns info
     dnsAddress = '127.0.0.1'
     dnsPort = 5300
@@ -59,36 +69,50 @@ def send_list_file(connectionSocket):
 
     connectionSocket.close()
 
+def hand_shake_server(serverSocket):
+    data , infoClient = serverSocket.recvfrom(2048)
+
+    packetReceived = pickle.loads(data)
+    packetReceived = json.loads(packetReceived) # convert Json to dict
+    
+    packet = Packet(3, packetReceived['seq'] + 2)
+
+    packetJson = json.dumps(packet.__dict__)
+
+
+    packetEncoded = pickle.dumps(packetJson)
+
+    serverSocket.sendto(packetEncoded, infoClient )
+       
+
 
 # aqui tem que fazer com udp agora
 def run_server():
     serverAddress = '127.0.0.1'
     serverPort = 13000
 
-    serverSocket = socket(AF_INET,SOCK_STREAM)
+    serverSocket = socket(AF_INET,SOCK_DGRAM)
     serverSocket.bind((serverAddress,serverPort))
 
-    serverSocket.listen(1)
+    #serverSocket.listen(1)
 
     print('Server on port 13000...')
 
     while True:
-        connectionSocket, clientInfo = serverSocket.accept()
-        data = connectionSocket.recv(2048)
+        hand_shake_server(serverSocket)
 
+       
+        # info = data.decode().split(' ')
+        # op = info[0]
 
-        print(data.decode())
-        info = data.decode().split(' ')
-        op = info[0]
+        # if op == '1':
+        #     send_file(connectionSocket,info)
 
-        if op == '1':
-            send_file(connectionSocket,info)
-
-        elif op == '2':
-            send_list_file(connectionSocket)
+        # elif op == '2':
+        #     send_list_file(connectionSocket)
             
-        else:
-            print('Operacao invalida')
+        # else:
+        #     print('Operacao invalida')
 
 
 def main():

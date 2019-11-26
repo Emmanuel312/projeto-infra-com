@@ -1,4 +1,13 @@
 from socket import *
+import json
+import pickle
+
+class Packet:
+    def __init__(self,seq,ack = None,data = None):
+        self.seq = seq
+        self.ack = ack
+        self.data = data
+
 
 def make_socket_dns_connection():
     registerDnsSocket = socket(AF_INET,SOCK_DGRAM)
@@ -18,11 +27,40 @@ def udp_dns_connection(registerDnsSocket):
 
     return data,dnsInfo
 
+def hand_shake_client(clientSocket,serverIp):
+    packet = Packet(0)
+    
+    packetJson = json.dumps(packet.__dict__)
+
+
+    packetEncoded = pickle.dumps(packetJson)
+
+    clientSocket.sendto(packetEncoded, (serverIp,13000))
+
+    data, infoServer = clientSocket.recvfrom(2048)
+
+    packetReceived = pickle.loads(data)
+    packetReceived = json.loads(packetReceived) # json to dict
+
+    return packetReceived['ack'] == packet.seq + 1
+       
+    
+
+    
+
+
 
 # mudar para socket udp
 def make_socket_tcp(serverIp):
-    clientSocket = socket(AF_INET,SOCK_STREAM)
-    clientSocket.connect((serverIp,13000))
+   
+    clientSocket = socket(AF_INET,SOCK_DGRAM)
+    if hand_shake_client(clientSocket, serverIp):
+        print('Success')
+    else:
+        print('Failed')
+   
+
+
 
     return clientSocket
 
