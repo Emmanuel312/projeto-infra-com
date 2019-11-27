@@ -4,8 +4,10 @@ dnsServers = {}
 
 def make_dnsServer():
     # server info
-    dnsIp = '127.0.0.1'
+    dnsIp = gethostbyname(gethostname())
     dnsPort = 5300 
+
+    print('Ip do dns: ' + dnsIp)
     # create a udp server socket 
     dnsSocket = socket(AF_INET,SOCK_DGRAM)
     dnsSocket.bind((dnsIp,dnsPort))

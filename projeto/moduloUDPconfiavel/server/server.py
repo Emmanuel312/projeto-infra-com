@@ -13,6 +13,20 @@ class Packet:
 
 # nome do repositorio que contem os arquivos do servidor
 repo = 'repo1'
+serverIp = socket.gethostbyname(socket.gethostname())
+
+def packetEncode(packet):
+    packetJson = json.dumps(packet.__dict__)
+    packetEncoded = pickle.dumps(packetJson)
+
+    return packetEncoded
+
+def packetDecode(packet):
+    packetReceived = pickle.loads(data)
+    packetReceived = json.loads(packetReceived) # json to dict
+    
+    return packetReceived
+
 
 def make_socket_dns_connection():
     registerDnsSocket = socket(AF_INET,SOCK_DGRAM)
@@ -20,7 +34,7 @@ def make_socket_dns_connection():
     return registerDnsSocket
 
 def udp_dns_connection(registerDnsSocket):
-    info = 'R a 127.0.0.1'
+    info = 'R a ' + serverIp
     # dns info
     dnsAddress = '127.0.0.1'
     dnsPort = 5300
@@ -72,15 +86,11 @@ def send_list_file(connectionSocket):
 def hand_shake_server(serverSocket):
     data , infoClient = serverSocket.recvfrom(2048)
 
-    packetReceived = pickle.loads(data)
-    packetReceived = json.loads(packetReceived) # convert Json to dict
+    packetReceived = packetDecode(data)
     
-    packet = Packet(3, packetReceived['seq'] + 2)
+    packet = Packet(0, packetReceived['seq'] + 1)
 
-    packetJson = json.dumps(packet.__dict__)
-
-
-    packetEncoded = pickle.dumps(packetJson)
+    packetEncoded = packetEncode(packet)
 
     serverSocket.sendto(packetEncoded, infoClient )
        
@@ -88,11 +98,10 @@ def hand_shake_server(serverSocket):
 
 # aqui tem que fazer com udp agora
 def run_server():
-    serverAddress = '127.0.0.1'
     serverPort = 13000
 
     serverSocket = socket(AF_INET,SOCK_DGRAM)
-    serverSocket.bind((serverAddress,serverPort))
+    serverSocket.bind((serverIp,serverPort))
 
     #serverSocket.listen(1)
 

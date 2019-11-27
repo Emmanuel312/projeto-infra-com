@@ -1,13 +1,13 @@
 from socket import *
 import json
 import pickle
+from threading import Timer
 
 class Packet:
     def __init__(self,seq,ack = None,data = None):
         self.seq = seq
         self.ack = ack
         self.data = data
-
 
 def make_socket_dns_connection():
     registerDnsSocket = socket(AF_INET,SOCK_DGRAM)
@@ -27,20 +27,40 @@ def udp_dns_connection(registerDnsSocket):
 
     return data,dnsInfo
 
+def packetEncode(packet):
+    packetJson = json.dumps(packet.__dict__)
+    packetEncoded = pickle.dumps(packetJson)
+
+    return packetEncoded
+
+def packetDecode(packet):
+    packetReceived = pickle.loads(data)
+    packetReceived = json.loads(packetReceived) # json to dict
+    
+    return packetReceived
+
+
+def send(socket,packetEncoded, serverInfo):
+    socket.sendto(packetEncoded, serverInfo)
+
+
+
 def hand_shake_client(clientSocket,serverIp):
     packet = Packet(0)
     
-    packetJson = json.dumps(packet.__dict__)
+    packetEncoded = packetEncode(packet)
 
+    send(clientSocket,packetEncoded, (serverIp,13000))
 
-    packetEncoded = pickle.dumps(packetJson)
-
-    clientSocket.sendto(packetEncoded, (serverIp,13000))
+    timer = Timer(5.0, send(clientSocket,packetEncoded, (serverIp,13000)))
+    timer.start() 
 
     data, infoServer = clientSocket.recvfrom(2048)
 
-    packetReceived = pickle.loads(data)
-    packetReceived = json.loads(packetReceived) # json to dict
+    timer.cancel()      
+
+
+    packetReceived = packetDecode(data)
 
     return packetReceived['ack'] == packet.seq + 1
        
@@ -54,10 +74,10 @@ def hand_shake_client(clientSocket,serverIp):
 def make_socket_tcp(serverIp):
    
     clientSocket = socket(AF_INET,SOCK_DGRAM)
-    if hand_shake_client(clientSocket, serverIp):
-        print('Success')
-    else:
-        print('Failed')
+
+    while hand_shake_client(clientSocket, serverIp) is False:
+        pass
+
    
 
 
