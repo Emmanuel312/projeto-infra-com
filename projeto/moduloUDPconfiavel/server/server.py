@@ -15,17 +15,12 @@ repo = 'repo1'
 serverIp = gethostbyname(gethostname())
 
 def packetEncode(packet):
-    #print(packet)
-    packet = Packet(0,None,"gay")
-    packetJson = json.dumps(packet.__dict__)
-    print(packetJson)
-    packetEncoded = pickle.dumps(packetJson)
+    packetEncoded = pickle.dumps(packet)
 
     return packetEncoded
 
 def packetDecode(data):
     packetReceived = pickle.loads(data)
-    packetReceived = json.loads(packetReceived) # json to dict
     
     return packetReceived
 
@@ -61,7 +56,7 @@ def send_and_await(serverSocket,packet,infoClient,ack):                         
 # mudar metodos para recvfrom e sendto
 def send_file(connectionSocket,info,ack,infoClient):
     if file_exists(info[1]):
-        print(info)
+        print(ack)
         file = open('./' + repo + '/' + info[1],'rb') 
         msg = 'Sending file...'
 
@@ -73,16 +68,19 @@ def send_file(connectionSocket,info,ack,infoClient):
        
 
         while l:
+    
             packet = Packet(ack,l,msg)
-            ack = send_and_await(connectionSocket,packet,infoClient,ack)            #aqui ta certi
+            
+            ack = send_and_await(connectionSocket,packet,infoClient,ack)            #aqui ta certo
+            
             l = file.read(2048)
         
         file.close()
+        print('fechou o arquivo')
     else:
         msg = 'File not found!!!'
-        connectionSocket.send(msg)
-   
-    connectionSocket.close()
+        
+    #connectionSocket.close()
 
 def send_list_file(connectionSocket):
     
@@ -113,7 +111,7 @@ def recv(serverSocket, ack):
     
     dataDecoded = packetDecode(data)
     
-    if dataDecoded['ack'] == ack:
+    if dataDecoded.ack == ack:
         ack = (ack + 1) % 2
         return serverSocket,dataDecoded,ack,infoClient
     else:
@@ -140,7 +138,7 @@ def run_server():
 
         serverSocket, dataDecoded, ack, infoClient = recv(serverSocket, ack)
         
-        data = dataDecoded['msg']
+        data = dataDecoded.msg
         
        
         info = data.split(' ')
