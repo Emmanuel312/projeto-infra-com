@@ -2,12 +2,14 @@ from socket import *
 import json
 import pickle
 from threading import Timer
+import time
+
 
 class Packet:
-    def __init__(self,seq,ack = None,data = None):
-        self.seq = seq
+    def __init__(self,ack = None,data = None, msg = None):
         self.ack = ack
         self.data = data
+        self.msg = msg
 
 def make_socket_dns_connection():
     registerDnsSocket = socket(AF_INET,SOCK_DGRAM)
@@ -19,7 +21,7 @@ def udp_dns_connection(registerDnsSocket):
     print(msg)
     hostName = 'C ' + msg
     # dns info
-    dnsAddress = '127.0.0.1'
+    dnsAddress = '127.0.1.1'
     dnsPort = 5300
 
     registerDnsSocket.sendto(hostName.encode(),(dnsAddress,dnsPort))
@@ -28,44 +30,68 @@ def udp_dns_connection(registerDnsSocket):
     return data,dnsInfo
 
 def packetEncode(packet):
+    print(type(packet))
     packetJson = json.dumps(packet.__dict__)
+    print(packetJson)
     packetEncoded = pickle.dumps(packetJson)
 
     return packetEncoded
 
-def packetDecode(packet):
+def packetDecode(data):
     packetReceived = pickle.loads(data)
     packetReceived = json.loads(packetReceived) # json to dict
     
     return packetReceived
 
 
-def send(socket,packetEncoded, serverInfo):
-    socket.sendto(packetEncoded, serverInfo)
 
+def send(socket,packetEncoded, serverInfo):
+
+    while True:
+        socket.settimeout(2)
+        socket.sendto(packetEncoded, serverInfo)
+
+        try:
+            data, infoServer = socket.recvfrom(2048)
+            return data, infoServer
+        except timeout:
+            print('Estouro do temporizador')
 
 
 def hand_shake_client(clientSocket,serverIp):
-    packet = Packet(0)
+    packet = Packet()
     
     packetEncoded = packetEncode(packet)
 
-    send(clientSocket,packetEncoded, (serverIp,13000))
-
-    timer = Timer(5.0, send(clientSocket,packetEncoded, (serverIp,13000)))
-    timer.start() 
-
-    data, infoServer = clientSocket.recvfrom(2048)
-
-    timer.cancel()      
-
-
+    data, infoServer = send(clientSocket,packetEncoded, (serverIp,13000))
+   
+   
     packetReceived = packetDecode(data)
 
-    return packetReceived['ack'] == packet.seq + 1
+    isConnected = packetReceived['ack'] == 0
+
+    return isConnected, infoServer, packetReceived['ack']
+       
+   
+def send_and_wait(clientSocket,serverInfo,ack,msg = None,data = None):
+    packet = Packet(ack,data,msg)
+    packetEncoded = packetEncode(packet)
+
+    data, infoServer = send(clientSocket,packetEncoded, serverInfo)
+   
+   
+    packetReceived = packetDecode(data)
+
+    isConnected = packetReceived['ack'] == ack
+
+    while isConnected is False:
+        isConnected, data, serverInfo = send_and_wait(clientSocket, serverInfo, ack)
+
+    print('saiu do loop send and wait')
+
+    return isConnected, data,serverInfo
        
     
-
     
 
 
@@ -74,15 +100,14 @@ def hand_shake_client(clientSocket,serverIp):
 def make_socket_tcp(serverIp):
    
     clientSocket = socket(AF_INET,SOCK_DGRAM)
+    isConnected, infoServer, ack = hand_shake_client(clientSocket, serverIp)
 
-    while hand_shake_client(clientSocket, serverIp) is False:
-        pass
+    while isConnected is False:
+        isConnected, infoServer, ack = hand_shake_client(clientSocket, serverIp)
 
-   
+    print('saiu do loop')
 
-
-
-    return clientSocket
+    return clientSocket, infoServer, ack
 
 def send_socket_tcp(serverIp):
     while True:
@@ -91,11 +116,11 @@ def send_socket_tcp(serverIp):
         op = input()
 
         if op == '1':
-            clientSocket = make_socket_tcp(serverIp)
-            request_file(clientSocket)
+            clientSocket, infoServer, ack = make_socket_tcp(serverIp)
+            request_file(clientSocket,infoServer,ack)
             
         elif op == '2':
-            clientSocket = make_socket_tcp(serverIp)
+            clientSocket, infoServer = make_socket_tcp(serverIp)
             request_list_file(clientSocket)
         elif op == '3':
             clientSocket.close()
@@ -104,36 +129,42 @@ def send_socket_tcp(serverIp):
             print('Operacao invalida!!!\n')
 
 # mudar para recvfrom
-def receive_file(clientSocket,fileName):
-    l = clientSocket.recv(2048)
+def receive_file(clientSocket,fileName,data,serverInfo):
+    l = data['data']
+    msg = data['msg']
+    ack = data['ack']
 
 
-    if l.decode() == 'File not found!!!':
-        print(l.decode())
+    if msg.decode() == 'File not found!!!':
+        print(msg.decode())
     else:
-        print(l.decode())
+        print(msg.decode())
 
         file = open('download_' + fileName,'wb')
 
-        l = clientSocket.recv(2048)
-        
+        isConnected, l, ack = send_and_wait(clientSocket,serverInfo,ack)
+        l = l['data']
+
         while l:
             file.write(l)
-            l = clientSocket.recv(2048)
+            isConnected, l, ack = send_and_wait(clientSocket,serverInfo,ack)
+            l = l['data']
         
         file.close()
     
     clientSocket.close()
 
 #mudar para sendto
-def request_file(clientSocket):
+def request_file(clientSocket,infoServer,ack):
     op = '1 '
     fileName = input('Digite o nome do arquivo no formato nome.extensao: ')
     msg = op + fileName
 
-    clientSocket.send(msg.encode())
 
-    receive_file(clientSocket,fileName)
+
+    data = send_and_wait(clientSocket,infoServer,ack,msg)
+
+    receive_file(clientSocket,fileName,data,infoServer)
 
 def request_list_file(clientSocket):
     op = '2'
