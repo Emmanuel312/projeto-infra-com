@@ -45,7 +45,7 @@ def packetDecode(data):
 def send(socket,packetEncoded, serverInfo):
 
     while True:
-        socket.settimeout(2)
+        socket.settimeout(0.05)
         socket.sendto(packetEncoded, serverInfo)
 
         try:
@@ -82,10 +82,11 @@ def send_and_wait(clientSocket,serverInfo,ack,msg = None,data = None):
     
     packetReceived = packetDecode(data)
 
+    if packetReceived['msg'] == 'FIN': return False, packetReceived,serverInfo,ack
+    
     ack = (ack + 1) % 2
 
     isConnected = packetReceived['ack'] == ack
-    print(ack)
 
     while isConnected is False:
         isConnected, packetReceived, serverInfo,ack = send_and_wait(clientSocket, serverInfo, ack)
@@ -94,7 +95,7 @@ def send_and_wait(clientSocket,serverInfo,ack,msg = None,data = None):
     return isConnected, packetReceived,serverInfo,ack
        
 
-# mudar para socket udp
+
 def make_socket_tcp(serverIp):
    
     clientSocket = socket(AF_INET,SOCK_DGRAM)
@@ -137,24 +138,29 @@ def receive_file(clientSocket,fileName,packet,serverInfo):
         print(msg)
     else:
 
-        print(msg)
-
         file = open('download_' + fileName,'wb')
         
+        file.write(l)
+
         isConnected, l, serverInfo,ack = send_and_wait(clientSocket,serverInfo,ack)
-        
         l = l['data']
+        
         while l:
             file.write(l)
             
+            lAnt = l
+
             isConnected, l,serverInfo, ack = send_and_wait(clientSocket,serverInfo,ack)
             l = l['data']
         
+        print(l)
+        
         file.close()
-    
-    #clientSocket.close()
+        
+        print('fechou o arquivo')
+        clientSocket.close()
 
-#mudar para sendto
+
 def request_file(clientSocket,infoServer,ack):
     op = '1 '
     fileName = input('Digite o nome do arquivo no formato nome.extensao: ')

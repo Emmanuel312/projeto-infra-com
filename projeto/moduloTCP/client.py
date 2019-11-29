@@ -63,7 +63,7 @@ def receive_file(clientSocket,fileName):
         
         file.close()
     
-    clientSocket.close()
+   # clientSocket.close()
 
 def request_file(clientSocket):
     op = '1 '

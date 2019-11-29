@@ -58,30 +58,35 @@ def send_and_await(serverSocket,packet,infoClient,ack):                         
 # mudar metodos para recvfrom e sendto
 def send_file(connectionSocket,info,ack,infoClient):
     if file_exists(info[1]):
-        print(ack)
+        
         file = open('./' + repo + '/' + info[1],'rb') 
         msg = 'Sending file...'
 
 
-        #l = file.read(2048)
-        
-        # packet = packet_dict(ack,l,msg)
-        # ack = send_and_await(connectionSocket,packet,infoClient,ack)                #aqui ta certo
-       
+        l = file.read(2048)
+        packet = packet_dict(ack,l,msg)
+        print('print l = ',l)
+        ack = send_and_await(connectionSocket,packet,infoClient,ack)
 
-        while True:
+        while l:
             l = file.read(2048)
-            packet = packet_dict(ack,l,msg)
-            
-            ack = send_and_await(connectionSocket,packet,infoClient,ack)            #aqui ta certo
-            print('ack do loop', ack)
+            print(l)
+            if l:
+                packet = packet_dict(ack,l,msg)
+                ack = send_and_await(connectionSocket,packet,infoClient,ack)
+        
+        # implementa Fin
+        packet = packetEncode(packet_dict(ack,l,'FIN'))
+        connectionSocket.sendto(packet,infoClient)
+
         
         file.close()
+        connectionSocket.close()
         print('fechou o arquivo')
     else:
         msg = 'File not found!!!'
         
-    #connectionSocket.close()
+    connectionSocket.close()
 
 def send_list_file(connectionSocket):
     
@@ -98,7 +103,6 @@ def hand_shake_server(serverSocket):
     ack = 0
     data , infoClient = serverSocket.recvfrom(2048)
     packetReceived = packetDecode(data)
-    print(packetReceived['ack'])
     packet = packet_dict(ack)
 
     packetEncoded = packetEncode(packet)
@@ -128,29 +132,29 @@ def run_server():
     serverSocket = socket(AF_INET,SOCK_DGRAM)
     serverSocket.bind((serverIp,serverPort))
 
-    #serverSocket.listen(1)
+    
 
     print('Server on port 13000...')
 
-    while True:
-        serverSocket, ack = hand_shake_server(serverSocket)
+   
+    serverSocket, ack = hand_shake_server(serverSocket)
 
-        serverSocket, dataDecoded, ack, infoClient = recv(serverSocket, ack)
+    serverSocket, dataDecoded, ack, infoClient = recv(serverSocket, ack)
+    
+    data = dataDecoded['msg']
+    
+    
+    info = data.split(' ')
+    op = info[0]
+
+    if op == '1':
+        send_file(serverSocket,info,ack,infoClient)
+
+    # elif op == '2':
+    #     send_list_file(connectionSocket)
         
-        data = dataDecoded['msg']
-        
-       
-        info = data.split(' ')
-        op = info[0]
-
-        if op == '1':
-            send_file(serverSocket,info,ack,infoClient)
-
-        # elif op == '2':
-        #     send_list_file(connectionSocket)
-            
-        # else:
-        #     print('Operacao invalida')
+    # else:
+    #     print('Operacao invalida')
 
 
 def main():
