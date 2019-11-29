@@ -3,12 +3,14 @@ from os import listdir
 import pickle
 import json
 
+def packet_dict(ack = None,data = None,msg = None):
+    packet = {}
+    packet['msg'] = msg
+    packet['ack'] = ack
+    packet['data'] = data
 
-class Packet:
-    def __init__(self,ack = None,data = None, msg = None):
-        self.ack = ack
-        self.data = data
-        self.msg = msg
+    return packet
+
 
 # nome do repositorio que contem os arquivos do servidor
 repo = 'repo1'
@@ -61,19 +63,18 @@ def send_file(connectionSocket,info,ack,infoClient):
         msg = 'Sending file...'
 
 
-        l = file.read(2048)
+        #l = file.read(2048)
         
-        packet = Packet(ack,l,msg)
-        ack = send_and_await(connectionSocket,packet,infoClient,ack)                #aqui ta certo
+        # packet = packet_dict(ack,l,msg)
+        # ack = send_and_await(connectionSocket,packet,infoClient,ack)                #aqui ta certo
        
 
-        while l:
-    
-            packet = Packet(ack,l,msg)
+        while True:
+            l = file.read(2048)
+            packet = packet_dict(ack,l,msg)
             
             ack = send_and_await(connectionSocket,packet,infoClient,ack)            #aqui ta certo
-            
-            l = file.read(2048)
+            print('ack do loop', ack)
         
         file.close()
         print('fechou o arquivo')
@@ -97,8 +98,8 @@ def hand_shake_server(serverSocket):
     ack = 0
     data , infoClient = serverSocket.recvfrom(2048)
     packetReceived = packetDecode(data)
-    
-    packet = Packet(ack)
+    print(packetReceived['ack'])
+    packet = packet_dict(ack)
 
     packetEncoded = packetEncode(packet)
 
@@ -111,16 +112,14 @@ def recv(serverSocket, ack):
     
     dataDecoded = packetDecode(data)
     
-    if dataDecoded.ack == ack:
+    print('ack recebido = ', dataDecoded['ack'])
+
+
+    if dataDecoded['ack'] == ack:
         ack = (ack + 1) % 2
         return serverSocket,dataDecoded,ack,infoClient
     else:
         recv(serverSocket,ack)
-    
-        
-
-
-
 
 
 def run_server():
@@ -138,7 +137,7 @@ def run_server():
 
         serverSocket, dataDecoded, ack, infoClient = recv(serverSocket, ack)
         
-        data = dataDecoded.msg
+        data = dataDecoded['msg']
         
        
         info = data.split(' ')

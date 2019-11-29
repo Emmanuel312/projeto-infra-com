@@ -4,12 +4,13 @@ import pickle
 from threading import Timer
 import time
 
+def packet_dict(ack = None,data = None,msg = None):
+    packet = {}
+    packet['msg'] = msg
+    packet['ack'] = ack
+    packet['data'] = data
 
-class Packet:
-    def __init__(self,ack = None,data = None, msg = None):
-        self.ack = ack
-        self.data = data
-        self.msg = msg
+    return packet
 
 def make_socket_dns_connection():
     registerDnsSocket = socket(AF_INET,SOCK_DGRAM)
@@ -48,7 +49,7 @@ def send(socket,packetEncoded, serverInfo):
         socket.sendto(packetEncoded, serverInfo)
 
         try:
-            data, infoServer = socket.recvfrom(2048)
+            data, infoServer = socket.recvfrom(8096)
             
             return data, infoServer
         except timeout:
@@ -56,7 +57,7 @@ def send(socket,packetEncoded, serverInfo):
 
 
 def hand_shake_client(clientSocket,serverIp):
-    packet = Packet()
+    packet = packet_dict()
     
     packetEncoded = packetEncode(packet)
 
@@ -64,34 +65,34 @@ def hand_shake_client(clientSocket,serverIp):
    
    
     packetReceived = packetDecode(data)
+    print(packetReceived['ack'])
+    isConnected = packetReceived['ack'] == 0
 
-    isConnected = packetReceived.ack == 0
-
-    return isConnected, infoServer, packetReceived.ack
+    return isConnected, infoServer, packetReceived['ack']
        
    
 def send_and_wait(clientSocket,serverInfo,ack,msg = None,data = None):
-    packet = Packet(ack,data,msg)
+    packet = packet_dict(ack,data,msg)
     packetEncoded = packetEncode(packet)
+
+    print('ack mandado = ', ack)
 
     data, infoServer = send(clientSocket,packetEncoded, serverInfo)
    
-   
+    
     packetReceived = packetDecode(data)
 
-    isConnected = packetReceived.ack == (ack + 1) % 2
+    ack = (ack + 1) % 2
+
+    isConnected = packetReceived['ack'] == ack
     print(ack)
 
     while isConnected is False:
-        isConnected, packetReceived, serverInfo = send_and_wait(clientSocket, serverInfo, ack)
+        isConnected, packetReceived, serverInfo,ack = send_and_wait(clientSocket, serverInfo, ack)
+    
 
-
-    return isConnected, packetReceived,serverInfo
+    return isConnected, packetReceived,serverInfo,ack
        
-    
-    
-
-
 
 # mudar para socket udp
 def make_socket_tcp(serverIp):
@@ -126,9 +127,9 @@ def send_socket_tcp(serverIp):
 
 # mudar para recvfrom
 def receive_file(clientSocket,fileName,packet,serverInfo):
-    l = packet.data
-    msg = packet.msg
-    ack = packet.ack
+    l = packet['data']
+    msg = packet['msg']
+    ack = packet['ack']
 
     
 
@@ -139,14 +140,15 @@ def receive_file(clientSocket,fileName,packet,serverInfo):
         print(msg)
 
         file = open('download_' + fileName,'wb')
-
-        isConnected, l, ack = send_and_wait(clientSocket,serverInfo,ack)
-        l = l.data
-
+        
+        isConnected, l, serverInfo,ack = send_and_wait(clientSocket,serverInfo,ack)
+        
+        l = l['data']
         while l:
             file.write(l)
-            isConnected, l, ack = send_and_wait(clientSocket,serverInfo,ack)
-            l = l.data
+            
+            isConnected, l,serverInfo, ack = send_and_wait(clientSocket,serverInfo,ack)
+            l = l['data']
         
         file.close()
     
@@ -158,9 +160,7 @@ def request_file(clientSocket,infoServer,ack):
     fileName = input('Digite o nome do arquivo no formato nome.extensao: ')
     msg = op + fileName
 
-
-
-    isConnected, packetReceived, serverInfo = send_and_wait(clientSocket,infoServer,ack,msg)
+    isConnected, packetReceived, serverInfo, ack = send_and_wait(clientSocket,infoServer,ack,msg)
     
     receive_file(clientSocket,fileName,packetReceived,infoServer)
 
