@@ -49,11 +49,20 @@ def file_exists(requestedFile):
 
 def send_and_await(serverSocket,packet,infoClient,ack):                             #ta certo
     packetEncoded = packetEncode(packet)
-    serverSocket.sendto(packetEncoded,infoClient)
-    
-    serverSocket,dataDecoded,ack,infoClient = recv(serverSocket,ack)
+    while True:
+        serverSocket.settimeout(0.05)
+        serverSocket.sendto(packetEncoded,infoClient)
 
-    return ack
+        try:
+            serverSocket,dataDecoded,ack,infoClient = recv(serverSocket,ack)
+            
+            return ack
+        except timeout:
+            print('Estouro do temporizador')
+    
+    
+    
+
 
 # mudar metodos para recvfrom e sendto
 def send_file(connectionSocket,info,ack,infoClient):
@@ -63,14 +72,12 @@ def send_file(connectionSocket,info,ack,infoClient):
         msg = 'Sending file...'
 
 
-        l = file.read(2048)
+        l = file.read(100)
         packet = packet_dict(ack,l,msg)
-        print('print l = ',l)
         ack = send_and_await(connectionSocket,packet,infoClient,ack)
 
         while l:
-            l = file.read(2048)
-            print(l)
+            l = file.read(100)
             if l:
                 packet = packet_dict(ack,l,msg)
                 ack = send_and_await(connectionSocket,packet,infoClient,ack)
@@ -116,45 +123,48 @@ def recv(serverSocket, ack):
     
     dataDecoded = packetDecode(data)
     
-    print('ack recebido = ', dataDecoded['ack'])
+    print('ack mandado = ', dataDecoded['ack'])
 
 
     if dataDecoded['ack'] == ack:
         ack = (ack + 1) % 2
         return serverSocket,dataDecoded,ack,infoClient
     else:
-        recv(serverSocket,ack)
+        #recv(serverSocket,ack)
+        return serverSocket,dataDecoded,ack,infoClient
 
 
 def run_server():
     serverPort = 13000
 
-    serverSocket = socket(AF_INET,SOCK_DGRAM)
-    serverSocket.bind((serverIp,serverPort))
 
     
+    while True:
 
-    print('Server on port 13000...')
+        print('Server on port 13000...')
 
-   
-    serverSocket, ack = hand_shake_server(serverSocket)
 
-    serverSocket, dataDecoded, ack, infoClient = recv(serverSocket, ack)
+        serverSocket = socket(AF_INET,SOCK_DGRAM)
+        serverSocket.bind((serverIp,serverPort))
     
-    data = dataDecoded['msg']
-    
-    
-    info = data.split(' ')
-    op = info[0]
+        serverSocket, ack = hand_shake_server(serverSocket)
 
-    if op == '1':
-        send_file(serverSocket,info,ack,infoClient)
-
-    # elif op == '2':
-    #     send_list_file(connectionSocket)
+        serverSocket, dataDecoded, ack, infoClient = recv(serverSocket, ack)
         
-    # else:
-    #     print('Operacao invalida')
+        data = dataDecoded['msg']
+        
+        
+        info = data.split(' ')
+        op = info[0]
+
+        if op == '1':
+            send_file(serverSocket,info,ack,infoClient)
+
+        # elif op == '2':
+        #     send_list_file(connectionSocket)
+            
+        # else:
+        #     print('Operacao invalida')
 
 
 def main():

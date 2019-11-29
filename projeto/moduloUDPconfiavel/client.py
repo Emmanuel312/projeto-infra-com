@@ -42,18 +42,24 @@ def packetDecode(data):
 
 
 
-def send(socket,packetEncoded, serverInfo):
+def send(socket,packetEncoded, serverInfo, isHandShake = False):
+    if isHandShake:
+        while True:
+            socket.settimeout(0.05)
+            socket.sendto(packetEncoded, serverInfo)
 
-    while True:
-        socket.settimeout(0.05)
+            try:
+                data, infoServer = socket.recvfrom(8096)
+                
+                return data, infoServer
+            except timeout:
+                print('Estouro do temporizador')
+    else:
         socket.sendto(packetEncoded, serverInfo)
+        data, infoServer = socket.recvfrom(8096)
 
-        try:
-            data, infoServer = socket.recvfrom(8096)
-            
-            return data, infoServer
-        except timeout:
-            print('Estouro do temporizador')
+        return data, infoServer
+
 
 
 def hand_shake_client(clientSocket,serverIp):
@@ -61,7 +67,7 @@ def hand_shake_client(clientSocket,serverIp):
     
     packetEncoded = packetEncode(packet)
 
-    data, infoServer = send(clientSocket,packetEncoded, (serverIp,13000))
+    data, infoServer = send(clientSocket,packetEncoded, (serverIp,13000), True)
    
    
     packetReceived = packetDecode(data)
@@ -75,7 +81,7 @@ def send_and_wait(clientSocket,serverInfo,ack,msg = None,data = None):
     packet = packet_dict(ack,data,msg)
     packetEncoded = packetEncode(packet)
 
-    print('ack mandado = ', ack)
+    print('ack recebido = ', ack)
 
     data, infoServer = send(clientSocket,packetEncoded, serverInfo)
    
@@ -84,12 +90,12 @@ def send_and_wait(clientSocket,serverInfo,ack,msg = None,data = None):
 
     if packetReceived['msg'] == 'FIN': return False, packetReceived,serverInfo,ack
     
-    ack = (ack + 1) % 2
+    
 
-    isConnected = packetReceived['ack'] == ack
+    isConnected = packetReceived['ack'] == (ack + 1) % 2
 
-    while isConnected is False:
-        isConnected, packetReceived, serverInfo,ack = send_and_wait(clientSocket, serverInfo, ack)
+    # while isConnected is False:
+    #     isConnected, packetReceived, serverInfo,ack = send_and_wait(clientSocket, serverInfo, ack)
     
 
     return isConnected, packetReceived,serverInfo,ack
@@ -147,13 +153,10 @@ def receive_file(clientSocket,fileName,packet,serverInfo):
         
         while l:
             file.write(l)
-            
-            lAnt = l
+        
 
             isConnected, l,serverInfo, ack = send_and_wait(clientSocket,serverInfo,ack)
             l = l['data']
-        
-        print(l)
         
         file.close()
         
