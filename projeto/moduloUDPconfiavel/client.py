@@ -50,13 +50,17 @@ def send(socket,packetEncoded, serverInfo, isHandShake = False):
 
             try:
                 data, infoServer = socket.recvfrom(8096)
-                
+               
                 return data, infoServer
             except timeout:
                 print('Estouro do temporizador')
     else:
+        pacote = packetDecode(packetEncoded)
+        print('Cliente mandou ack = ', pacote['ack'])
         socket.sendto(packetEncoded, serverInfo)
         data, infoServer = socket.recvfrom(8096)
+        p = packetDecode(data)
+        print('Cliente recebeu ack = ', p['ack'])
 
         return data, infoServer
 
@@ -81,11 +85,12 @@ def send_and_wait(clientSocket,serverInfo,ack,msg = None,data = None):
     packet = packet_dict(ack,data,msg)
     packetEncoded = packetEncode(packet)
 
-    print('ack recebido = ', ack)
+   
 
     data, infoServer = send(clientSocket,packetEncoded, serverInfo)
    
-    
+
+
     packetReceived = packetDecode(data)
 
     if packetReceived['msg'] == 'FIN': return False, packetReceived,serverInfo,ack
@@ -93,7 +98,8 @@ def send_and_wait(clientSocket,serverInfo,ack,msg = None,data = None):
     
 
     isConnected = packetReceived['ack'] == (ack + 1) % 2
-
+    if not isConnected:
+        print('isConnected = ' , isConnected)
     # while isConnected is False:
     #     isConnected, packetReceived, serverInfo,ack = send_and_wait(clientSocket, serverInfo, ack)
     
@@ -133,29 +139,36 @@ def send_socket_tcp(serverIp):
             print('Operacao invalida!!!\n')
 
 # mudar para recvfrom
-def receive_file(clientSocket,fileName,packet,serverInfo):
+def receive_file(clientSocket,fileName,packet,serverInfo,fack):
     l = packet['data']
     msg = packet['msg']
     ack = packet['ack']
 
-    
+
+   
 
     if msg == 'File not found!!!':
         print(msg)
     else:
-
         file = open('download_' + fileName,'wb')
-        
         file.write(l)
 
         isConnected, l, serverInfo,ack = send_and_wait(clientSocket,serverInfo,ack)
         l = l['data']
         
-        while l:
-            file.write(l)
         
 
+        while l:
+            
+            if isConnected:
+                file.write(l)
+
+                
+            prevAck = ack
             isConnected, l,serverInfo, ack = send_and_wait(clientSocket,serverInfo,ack)
+
+           
+
             l = l['data']
         
         file.close()
@@ -171,7 +184,7 @@ def request_file(clientSocket,infoServer,ack):
 
     isConnected, packetReceived, serverInfo, ack = send_and_wait(clientSocket,infoServer,ack,msg)
     
-    receive_file(clientSocket,fileName,packetReceived,infoServer)
+    receive_file(clientSocket,fileName,packetReceived,infoServer,ack)
 
 def request_list_file(clientSocket):
     op = '2'

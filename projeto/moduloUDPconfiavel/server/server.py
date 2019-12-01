@@ -2,6 +2,7 @@ from socket import *
 from os import listdir
 import pickle
 import json
+import time
 
 def packet_dict(ack = None,data = None,msg = None):
     packet = {}
@@ -50,17 +51,22 @@ def file_exists(requestedFile):
 def send_and_await(serverSocket,packet,infoClient,ack):                             #ta certo
     packetEncoded = packetEncode(packet)
     while True:
-        serverSocket.settimeout(0.05)
+        serverSocket.settimeout(0.0000000000000001)
+        
+        
+        print('Servidor mandou ack = ', packet['ack'])
         serverSocket.sendto(packetEncoded,infoClient)
 
         try:
-            serverSocket,dataDecoded,ack,infoClient = recv(serverSocket,ack)
+            serverSocket,dataDecoded,ack,infoClient, isAck = recv(serverSocket,ack)
             
-            return ack
+            if isAck : break
+
+            
         except timeout:
-            print('Estouro do temporizador')
+            print('Estouro do temporizador!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
     
-    
+    return ack
     
 
 
@@ -72,12 +78,12 @@ def send_file(connectionSocket,info,ack,infoClient):
         msg = 'Sending file...'
 
 
-        l = file.read(100)
+        l = file.read(2048)
         packet = packet_dict(ack,l,msg)
         ack = send_and_await(connectionSocket,packet,infoClient,ack)
 
         while l:
-            l = file.read(100)
+            l = file.read(2048)
             if l:
                 packet = packet_dict(ack,l,msg)
                 ack = send_and_await(connectionSocket,packet,infoClient,ack)
@@ -120,18 +126,18 @@ def hand_shake_server(serverSocket):
 
 def recv(serverSocket, ack):
     data, infoClient = serverSocket.recvfrom(2048)
-    
+
     dataDecoded = packetDecode(data)
     
-    print('ack mandado = ', dataDecoded['ack'])
+    print('Servidor recebeu ack = ', dataDecoded['ack'])
 
+    isAck = dataDecoded['ack'] == ack
 
-    if dataDecoded['ack'] == ack:
+    if isAck:
         ack = (ack + 1) % 2
-        return serverSocket,dataDecoded,ack,infoClient
+        return serverSocket,dataDecoded,ack,infoClient, isAck
     else:
-        #recv(serverSocket,ack)
-        return serverSocket,dataDecoded,ack,infoClient
+        return serverSocket,dataDecoded,ack,infoClient, not isAck
 
 
 def run_server():
@@ -149,7 +155,7 @@ def run_server():
     
         serverSocket, ack = hand_shake_server(serverSocket)
 
-        serverSocket, dataDecoded, ack, infoClient = recv(serverSocket, ack)
+        serverSocket, dataDecoded, ack, infoClient, isAck = recv(serverSocket, ack)
         
         data = dataDecoded['msg']
         
