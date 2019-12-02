@@ -53,7 +53,7 @@ def file_exists(requestedFile):
 def send_and_await(serverSocket,packet,infoClient,ack):                             #ta certo
     packetEncoded = packetEncode(packet)
     while True:
-        serverSocket.settimeout(0.0000000000000001)
+        serverSocket.settimeout(0.00000000000000000001)
         
         
         print('Servidor mandou ack = ', packet['ack'])

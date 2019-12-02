@@ -4,6 +4,9 @@ import pickle
 from threading import Timer
 import time
 
+
+WAITING = 0
+
 def packet_dict(ack = None,data = None,msg = None):
     packet = {}
     packet['msg'] = msg
@@ -50,7 +53,7 @@ def send(socket,packetEncoded, serverInfo, isHandShake = False):
 
             try:
                 data, infoServer = socket.recvfrom(8096)
-               
+                socket.settimeout(None)
                 return data, infoServer
             except timeout:
                 print('Estouro do temporizador')
@@ -67,6 +70,7 @@ def send(socket,packetEncoded, serverInfo, isHandShake = False):
 
 
 def hand_shake_client(clientSocket,serverIp):
+    global WAITING
     packet = packet_dict()
     
     packetEncoded = packetEncode(packet)
@@ -76,35 +80,34 @@ def hand_shake_client(clientSocket,serverIp):
    
     packetReceived = packetDecode(data)
     print(packetReceived['ack'])
-    isConnected = packetReceived['ack'] == 0
+    isConnected = packetReceived['ack'] == WAITING
+    if isConnected:
+        WAITING = (WAITING + 1) % 2
+        print('Espera mudou para ', WAITING)
 
     return isConnected, infoServer, packetReceived['ack']
        
    
 def send_and_wait(clientSocket,serverInfo,ack,msg = None,data = None):
+    global WAITING
     packet = packet_dict(ack,data,msg)
     packetEncoded = packetEncode(packet)
 
-   
-
     data, infoServer = send(clientSocket,packetEncoded, serverInfo)
    
-
-
     packetReceived = packetDecode(data)
 
-    if packetReceived['msg'] == 'FIN': return False, packetReceived,serverInfo,ack
+    if packetReceived['msg'] == 'FIN': 
+        WAITING = 0
+        return False, packetReceived,serverInfo,ack, True
     
-    
+    isConnected = packetReceived['ack'] == WAITING
 
-    isConnected = packetReceived['ack'] == (ack + 1) % 2
-    if not isConnected:
-        print('isConnected = ' , isConnected)
-    # while isConnected is False:
-    #     isConnected, packetReceived, serverInfo,ack = send_and_wait(clientSocket, serverInfo, ack)
-    
-
-    return isConnected, packetReceived,serverInfo,ack
+    if isConnected:
+        WAITING = (WAITING + 1) % 2
+        print('Espera mudou para ', WAITING)
+  
+    return isConnected, packetReceived,serverInfo,packetReceived['ack'], False
        
 
 
@@ -144,30 +147,21 @@ def receive_file(clientSocket,fileName,packet,serverInfo,fack):
     msg = packet['msg']
     ack = packet['ack']
 
-
-   
-
     if msg == 'File not found!!!':
         print(msg)
     else:
         file = open('download_' + fileName,'wb')
         file.write(l)
 
-        isConnected, l, serverInfo,ack = send_and_wait(clientSocket,serverInfo,ack)
+        isConnected, l, serverInfo, ack, FIN = send_and_wait(clientSocket,serverInfo,ack)
         l = l['data']
         
-        
-
-        while l:
-            
+        while l:            
             if isConnected:
                 file.write(l)
 
-                
-            prevAck = ack
-            isConnected, l,serverInfo, ack = send_and_wait(clientSocket,serverInfo,ack)
-
-           
+            isConnected, l, serverInfo, ack, FIN = send_and_wait(clientSocket,serverInfo,ack)
+            if FIN : break   
 
             l = l['data']
         
@@ -182,7 +176,7 @@ def request_file(clientSocket,infoServer,ack):
     fileName = input('Digite o nome do arquivo no formato nome.extensao: ')
     msg = op + fileName
 
-    isConnected, packetReceived, serverInfo, ack = send_and_wait(clientSocket,infoServer,ack,msg)
+    isConnected, packetReceived, serverInfo, ack, FIN = send_and_wait(clientSocket,infoServer,ack,msg)
     
     receive_file(clientSocket,fileName,packetReceived,infoServer,ack)
 
