@@ -59,11 +59,11 @@ def send(socket,packetEncoded, serverInfo, isHandShake = False):
                 print('Estouro do temporizador')
     else:
         pacote = packetDecode(packetEncoded)
-        print('Cliente mandou ack = ', pacote['ack'])
+        #print('Cliente mandou ack = ', pacote['ack'])
         socket.sendto(packetEncoded, serverInfo)
         data, infoServer = socket.recvfrom(8096)
         p = packetDecode(data)
-        print('Cliente recebeu ack = ', p['ack'])
+        #print('Cliente recebeu ack = ', p['ack'])
 
         return data, infoServer
 
@@ -98,6 +98,7 @@ def send_and_wait(clientSocket,serverInfo,ack,msg = None,data = None):
     packetReceived = packetDecode(data)
 
     if packetReceived['msg'] == 'FIN': 
+        print('FIN')
         WAITING = 0
         return False, packetReceived,serverInfo,ack, True
     
@@ -161,7 +162,9 @@ def receive_file(clientSocket,fileName,packet,serverInfo,fack):
                 file.write(l)
 
             isConnected, l, serverInfo, ack, FIN = send_and_wait(clientSocket,serverInfo,ack)
-            if FIN : break   
+            if FIN :
+                clientSocket.close()
+                break   
 
             l = l['data']
         

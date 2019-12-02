@@ -56,7 +56,7 @@ def send_and_await(serverSocket,packet,infoClient,ack):                         
         serverSocket.settimeout(0.00000000000000000001)
         
         
-        print('Servidor mandou ack = ', packet['ack'])
+        #print('Servidor mandou ack = ', packet['ack'])
         serverSocket.sendto(packetEncoded,infoClient)
 
         try:
@@ -74,15 +74,13 @@ def send_and_await(serverSocket,packet,infoClient,ack):                         
 
 # mudar metodos para recvfrom e sendto
 def send_file(connectionSocket,info,ack,infoClient):
+    global WAITING
     if file_exists(info[1]):
         
         file = open('./' + repo + '/' + info[1],'rb') 
         msg = 'Sending file...'
 
-
         l = file.read(2048)
-
-        
 
         packet = packet_dict(ack,l,msg)
         ack = send_and_await(connectionSocket,packet,infoClient,ack)
@@ -95,6 +93,7 @@ def send_file(connectionSocket,info,ack,infoClient):
         
         # implementa Fin
         packet = packetEncode(packet_dict(ack,l,'FIN'))
+        WAITING = 0
         connectionSocket.sendto(packet,infoClient)
 
         
@@ -119,7 +118,11 @@ def send_list_file(connectionSocket):
 
 def hand_shake_server(serverSocket):
     ack = 0
-    data , infoClient = serverSocket.recvfrom(2048)
+    while True:
+        data , infoClient = serverSocket.recvfrom(2048)
+        
+        if packetDecode(data)['ack'] is None: break
+
     packetReceived = packetDecode(data)
     packet = packet_dict(ack)
 
@@ -135,7 +138,7 @@ def recv(serverSocket, ack):
 
     dataDecoded = packetDecode(data)
     
-    print('Servidor recebeu ack = ', dataDecoded['ack'])
+    #print('Servidor recebeu ack = ', dataDecoded['ack'])
 
     isAck = dataDecoded['ack'] == WAITING
 
