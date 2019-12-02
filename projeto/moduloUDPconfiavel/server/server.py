@@ -4,6 +4,8 @@ import pickle
 import json
 import time
 
+WAITING = 0
+
 def packet_dict(ack = None,data = None,msg = None):
     packet = {}
     packet['msg'] = msg
@@ -79,6 +81,9 @@ def send_file(connectionSocket,info,ack,infoClient):
 
 
         l = file.read(2048)
+
+        
+
         packet = packet_dict(ack,l,msg)
         ack = send_and_await(connectionSocket,packet,infoClient,ack)
 
@@ -125,19 +130,20 @@ def hand_shake_server(serverSocket):
     return serverSocket, ack
 
 def recv(serverSocket, ack):
+    global WAITING
     data, infoClient = serverSocket.recvfrom(2048)
 
     dataDecoded = packetDecode(data)
     
     print('Servidor recebeu ack = ', dataDecoded['ack'])
 
-    isAck = dataDecoded['ack'] == ack
+    isAck = dataDecoded['ack'] == WAITING
 
     if isAck:
+        WAITING = (ack + 1) % 2
         ack = (ack + 1) % 2
-        return serverSocket,dataDecoded,ack,infoClient, isAck
-    else:
-        return serverSocket,dataDecoded,ack,infoClient, not isAck
+
+    return serverSocket,dataDecoded,ack,infoClient, isAck
 
 
 def run_server():
@@ -159,7 +165,7 @@ def run_server():
         
         data = dataDecoded['msg']
         
-        
+        print(dataDecoded)
         info = data.split(' ')
         op = info[0]
 
