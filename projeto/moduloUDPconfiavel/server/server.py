@@ -17,7 +17,7 @@ def packet_dict(ack = None,data = None,msg = None):
 
 # nome do repositorio que contem os arquivos do servidor
 repo = 'repo1'
-serverIp = gethostbyname(gethostname())
+serverIp = '192.168.43.182'
 
 def packetEncode(packet):
     packetEncoded = pickle.dumps(packet)
@@ -38,7 +38,7 @@ def make_socket_dns_connection():
 def udp_dns_connection(registerDnsSocket):
     info = 'R a ' + serverIp
     # dns info
-    dnsAddress = '127.0.1.1'
+    dnsAddress = '192.168.43.182'
     dnsPort = 5300
 
     registerDnsSocket.sendto(info.encode(), (dnsAddress,dnsPort))
@@ -53,16 +53,17 @@ def file_exists(requestedFile):
 def send_and_await(serverSocket,packet,infoClient,ack):                             #ta certo
     packetEncoded = packetEncode(packet)
     while True:
-        serverSocket.settimeout(0.00000000000000000001)
+        serverSocket.settimeout(0.1)
         
         
-        #print('Servidor mandou ack = ', packet['ack'])
+        print('Servidor mandou ack = ', packet['ack'])
         serverSocket.sendto(packetEncoded,infoClient)
 
         try:
             serverSocket,dataDecoded,ack,infoClient, isAck = recv(serverSocket,ack)
-            
-            if isAck : break
+            serverSocket.settimeout(None)
+            if isAck :
+                break
 
             
         except timeout:
@@ -120,25 +121,32 @@ def hand_shake_server(serverSocket):
     ack = 0
     while True:
         data , infoClient = serverSocket.recvfrom(2048)
-        
         if packetDecode(data)['ack'] is None: break
 
+    print('sai do while')
+   
     packetReceived = packetDecode(data)
+    print(packetReceived)
     packet = packet_dict(ack)
 
     packetEncoded = packetEncode(packet)
 
-    serverSocket.sendto(packetEncoded, infoClient )
+    print(packet)
+
+    
+    serverSocket.sendto(packetEncoded, infoClient)
 
     return serverSocket, ack
 
 def recv(serverSocket, ack):
     global WAITING
-    data, infoClient = serverSocket.recvfrom(2048)
+    while True:
+        data , infoClient = serverSocket.recvfrom(2048)
+        if packetDecode(data)['ack'] is not None: break
+   
 
     dataDecoded = packetDecode(data)
-    
-    #print('Servidor recebeu ack = ', dataDecoded['ack'])
+    print('Servidor recebeu ack = ', dataDecoded['ack'])
 
     isAck = dataDecoded['ack'] == WAITING
 
@@ -164,11 +172,13 @@ def run_server():
     
         serverSocket, ack = hand_shake_server(serverSocket)
 
+       
+
         serverSocket, dataDecoded, ack, infoClient, isAck = recv(serverSocket, ack)
         
+
         data = dataDecoded['msg']
         
-        print(dataDecoded)
         info = data.split(' ')
         op = info[0]
 

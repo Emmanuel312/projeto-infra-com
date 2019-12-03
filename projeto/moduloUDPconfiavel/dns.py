@@ -4,7 +4,7 @@ dnsServers = {}
 
 def make_dnsServer():
     # server info
-    dnsIp = gethostbyname(gethostname())
+    dnsIp = '192.168.43.182'
     dnsPort = 5300 
 
     print('Ip do dns: ' + dnsIp)

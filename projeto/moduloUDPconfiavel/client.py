@@ -25,7 +25,7 @@ def udp_dns_connection(registerDnsSocket):
     
     hostName = 'C ' + msg
     # dns info
-    dnsAddress = '127.0.1.1'
+    dnsAddress = '192.168.43.182'
     dnsPort = 5300
 
     registerDnsSocket.sendto(hostName.encode(),(dnsAddress,dnsPort))
