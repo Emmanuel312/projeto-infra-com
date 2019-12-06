@@ -3,7 +3,7 @@ import json
 import pickle
 from threading import Timer
 import time
-
+from random import *
 
 WAITING = 0
 
@@ -48,7 +48,7 @@ def packetDecode(data):
 def send(socket,packetEncoded, serverInfo, isHandShake = False):
     if isHandShake:
         while True:
-            socket.settimeout(0.05)
+            #socket.settimeout(0.05)
             socket.sendto(packetEncoded, serverInfo)
 
             try:
@@ -109,7 +109,14 @@ def send_and_wait(clientSocket,serverInfo,ack,msg = None,data = None):
         print('Espera mudou para ', WAITING)
   
     return isConnected, packetReceived,serverInfo,packetReceived['ack'], False
-       
+
+def fin(clientSocket,infoServer,ack):
+    msg = '3'
+    isConnected, packetReceived, serverInfo, ack, FIN = send_and_wait(clientSocket,infoServer,ack,msg)
+    
+    if FIN: 
+        clientSocket.close()
+    
 
 
 def make_socket_tcp(serverIp):
@@ -134,16 +141,17 @@ def send_socket_tcp(serverIp):
             request_file(clientSocket,infoServer,ack)
             
         elif op == '2':
-            clientSocket, infoServer = make_socket_tcp(serverIp)
-            request_list_file(clientSocket)
+            clientSocket, infoServer,ack = make_socket_tcp(serverIp)
+            request_list_file(clientSocket,infoServer,ack)
         elif op == '3':
-            clientSocket.close()
+            clientSocket, infoServer,ack = make_socket_tcp(serverIp)
+            fin(clientSocket,infoServer,ack)
             break
         else:
             print('Operacao invalida!!!\n')
 
 # mudar para recvfrom
-def receive_file(clientSocket,fileName,packet,serverInfo,fack):
+def receive_file(clientSocket,fileName,packet,serverInfo):
     l = packet['data']
     msg = packet['msg']
     ack = packet['ack']
@@ -152,6 +160,47 @@ def receive_file(clientSocket,fileName,packet,serverInfo,fack):
         print(msg)
     else:
         file = open('download_' + fileName,'wb')
+        file.write(l)
+
+        isConnected, l, serverInfo, ack, FIN = send_and_wait(clientSocket,serverInfo,ack)
+        l = l['data']
+        
+        while l:            
+            if isConnected:
+                file.write(l)
+
+            isConnected, l, serverInfo, ack, FIN = send_and_wait(clientSocket,serverInfo,ack)
+            if FIN:
+                clientSocket.close()
+                break   
+
+            l = l['data']
+        
+        file.close()
+        
+        print('fechou o arquivo')
+        clientSocket.close()
+
+
+def request_file(clientSocket,infoServer,ack):
+    op = '1 '
+    fileName = input('Digite o nome do arquivo no formato nome.extensao: ')
+    msg = op + fileName
+
+    isConnected, packetReceived, serverInfo, ack, FIN = send_and_wait(clientSocket,infoServer,ack,msg)
+    
+    receive_file(clientSocket,fileName,packetReceived,serverInfo)
+
+def receive_list_file(clientSocket,packet,serverInfo):
+    l = packet['data']
+    msg = packet['msg']
+    ack = packet['ack']
+
+    if msg == 'Empty List!!!':
+        print(msg)
+    else:
+        num = randrange(100)
+        file = open('list_file' + str(num) + '.txt','wb')
         file.write(l)
 
         isConnected, l, serverInfo, ack, FIN = send_and_wait(clientSocket,serverInfo,ack)
@@ -174,22 +223,14 @@ def receive_file(clientSocket,fileName,packet,serverInfo,fack):
         clientSocket.close()
 
 
-def request_file(clientSocket,infoServer,ack):
-    op = '1 '
-    fileName = input('Digite o nome do arquivo no formato nome.extensao: ')
-    msg = op + fileName
 
-    isConnected, packetReceived, serverInfo, ack, FIN = send_and_wait(clientSocket,infoServer,ack,msg)
-    
-    receive_file(clientSocket,fileName,packetReceived,infoServer,ack)
 
-def request_list_file(clientSocket):
+def request_list_file(clientSocket,infoServer,ack):
     op = '2'
 
-    clientSocket.send(op.encode())
-    listFile = clientSocket.recv(2048)
+    isConnected, packetReceived, serverInfo, ack, FIN = send_and_wait(clientSocket,infoServer,ack,op)
 
-    print('The server returned the following list:\n' + listFile.decode() + '\n')
+    receive_list_file(clientSocket,packetReceived,infoServer)
 
     clientSocket.close()
 

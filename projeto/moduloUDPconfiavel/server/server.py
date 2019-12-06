@@ -70,15 +70,27 @@ def send_and_await(serverSocket,packet,infoClient,ack):                         
             print('Estouro do temporizador!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
     
     return ack
-    
 
+def fin(serverSocket,ack,infoClient):
+    msg = 'FIN'
+    packet = packetEncode(packet_dict(ack,None,msg))
+
+    serverSocket.settimeout(0.1)
+    try:
+        data, infoClient = serverSocket.recvfrom(2048)
+        serverSocket.settimeout(None)
+    except:
+        fin(serverSocket,ack,infoClient)
+
+    serverSocket.close()
 
 # mudar metodos para recvfrom e sendto
 def send_file(connectionSocket,info,ack,infoClient):
     global WAITING
     if file_exists(info[1]):
         
-        file = open('./' + repo + '/' + info[1],'rb') 
+        #file = open('./' + repo + '/' + info[1],'rb') 
+        file = open('../client.py','rb')
         msg = 'Sending file...'
 
         l = file.read(2048)
@@ -106,16 +118,43 @@ def send_file(connectionSocket,info,ack,infoClient):
         
     connectionSocket.close()
 
-def send_list_file(connectionSocket):
+def send_list_file(serverSocket,ack,infoClient):
     
     separator = '\n'
 
     listFileArray = listdir('./' + repo)
-    listFileString = separator.join(listFileArray)
-    
-    connectionSocket.send(listFileString.encode())                                  #ta certo
 
-    connectionSocket.close()
+    if len(listFileArray) > 0:
+        listFileString = separator.join(listFileArray)
+        
+        file = open('list_file.txt','w')
+
+        file.write(listFileString)
+        file = open('list_file.txt','rb')
+        msg = 'Sending file...'
+
+        l = file.read(1)
+
+        packet = packet_dict(ack,l,msg)
+        ack = send_and_await(serverSocket,packet,infoClient,ack)
+
+        while l:
+            l = file.read(1)
+            if l:
+                packet = packet_dict(ack,l,msg)
+                ack = send_and_await(serverSocket,packet,infoClient,ack)
+        
+        # implementa Fin
+        packet = packetEncode(packet_dict(ack,l,'FIN'))
+        WAITING = 0
+        serverSocket.sendto(packet,infoClient)
+
+        
+        file.close()
+        serverSocket.close()
+        print('fechou o arquivo')
+    else:
+        msg = 'Empty List!!!'
 
 def hand_shake_server(serverSocket):
     ack = 0
@@ -132,7 +171,7 @@ def hand_shake_server(serverSocket):
     packetEncoded = packetEncode(packet)
 
     print(packet)
-
+    
     
     serverSocket.sendto(packetEncoded, infoClient)
 
@@ -185,11 +224,15 @@ def run_server():
         if op == '1':
             send_file(serverSocket,info,ack,infoClient)
 
-        # elif op == '2':
-        #     send_list_file(connectionSocket)
-            
-        # else:
-        #     print('Operacao invalida')
+        elif op == '2':
+            send_list_file(serverSocket,ack,infoClient)
+
+        elif op == '3':
+            fin(serverSocket,ack,infoClient)
+
+
+        else:
+            print('Operacao invalida')
 
 
 def main():
