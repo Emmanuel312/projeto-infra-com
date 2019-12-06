@@ -48,7 +48,7 @@ def packetDecode(data):
 def send(socket,packetEncoded, serverInfo, isHandShake = False):
     if isHandShake:
         while True:
-            #socket.settimeout(0.05)
+            socket.settimeout(0.05)
             socket.sendto(packetEncoded, serverInfo)
 
             try:
@@ -146,7 +146,6 @@ def send_socket_tcp(serverIp):
         elif op == '3':
             clientSocket, infoServer,ack = make_socket_tcp(serverIp)
             fin(clientSocket,infoServer,ack)
-            break
         else:
             print('Operacao invalida!!!\n')
 

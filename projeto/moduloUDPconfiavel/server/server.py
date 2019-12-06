@@ -73,24 +73,19 @@ def send_and_await(serverSocket,packet,infoClient,ack):                         
 
 def fin(serverSocket,ack,infoClient):
     msg = 'FIN'
-    packet = packetEncode(packet_dict(ack,None,msg))
-
-    serverSocket.settimeout(0.1)
-    try:
-        data, infoClient = serverSocket.recvfrom(2048)
-        serverSocket.settimeout(None)
-    except:
-        fin(serverSocket,ack,infoClient)
-
+    packetEncoded = packetEncode(packet_dict(ack,None,msg))
+        
+    serverSocket.sendto(packetEncoded,infoClient)
+    
     serverSocket.close()
+    
 
 # mudar metodos para recvfrom e sendto
 def send_file(connectionSocket,info,ack,infoClient):
     global WAITING
     if file_exists(info[1]):
         
-        #file = open('./' + repo + '/' + info[1],'rb') 
-        file = open('../client.py','rb')
+        file = open('./' + repo + '/' + info[1],'rb') 
         msg = 'Sending file...'
 
         l = file.read(2048)
@@ -205,13 +200,10 @@ def run_server():
 
         print('Server on port 13000...')
 
-
         serverSocket = socket(AF_INET,SOCK_DGRAM)
         serverSocket.bind((serverIp,serverPort))
     
         serverSocket, ack = hand_shake_server(serverSocket)
-
-       
 
         serverSocket, dataDecoded, ack, infoClient, isAck = recv(serverSocket, ack)
         
@@ -228,6 +220,7 @@ def run_server():
             send_list_file(serverSocket,ack,infoClient)
 
         elif op == '3':
+            print('chegou aqui')
             fin(serverSocket,ack,infoClient)
 
 
