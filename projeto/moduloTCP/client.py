@@ -40,7 +40,6 @@ def send_socket_tcp(serverIp):
             request_list_file(clientSocket)
         elif op == '3':
             clientSocket.close()
-            break
         else:
             print('Operacao invalida!!!\n')
 
@@ -63,7 +62,7 @@ def receive_file(clientSocket,fileName):
         
         file.close()
     
-   # clientSocket.close()
+    clientSocket.close()
 
 def request_file(clientSocket):
     op = '1 '

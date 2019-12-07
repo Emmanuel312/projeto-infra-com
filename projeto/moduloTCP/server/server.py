@@ -10,7 +10,7 @@ def make_socket_dns_connection():
     return registerDnsSocket
 
 def udp_dns_connection(registerDnsSocket):
-    info = 'R sises.ufpe.br 127.0.0.1'
+    info = 'R a 127.0.0.1'
     # dns info
     dnsAddress = '127.0.0.1'
     dnsPort = 5300
@@ -22,9 +22,6 @@ def udp_dns_connection(registerDnsSocket):
 
 def file_exists(requestedFile):
     return requestedFile in listdir('./' + repo) 
-
-
-    
 
 
 def send_file(connectionSocket,info):
@@ -87,9 +84,9 @@ def run_server():
         elif op == '2':
             send_list_file(connectionSocket)
             
-        else:
-            print('Operacao invalida')
-
+        elif op == '3':
+            connectionSocket.close()
+        
 
 def main():
     registerDnsSocket = make_socket_dns_connection()
