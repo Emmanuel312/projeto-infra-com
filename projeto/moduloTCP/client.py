@@ -25,6 +25,12 @@ def make_socket_tcp(serverIp):
 
     return clientSocket
 
+def close(clientSocket):
+    msg = '3'
+    clientSocket.send(msg.encode())
+
+    clientSocket.close()
+
 def send_socket_tcp(serverIp):
     while True:
         print('Escolha uma opcao\n 1 - Solicitar um arquivo\n 2 - Solicitar uma lista de arquivos disponıveis no repositorio\n 3 - Encerrar conexao\n')
@@ -39,7 +45,8 @@ def send_socket_tcp(serverIp):
             clientSocket = make_socket_tcp(serverIp)
             request_list_file(clientSocket)
         elif op == '3':
-            clientSocket.close()
+            clientSocket = make_socket_tcp(serverIp)
+            close(clientSocket)
         else:
             print('Operacao invalida!!!\n')
 
